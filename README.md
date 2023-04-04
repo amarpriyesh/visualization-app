@@ -13,6 +13,11 @@ Cheatsheet: https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49
 
 ### Create Environment
 
+Using yml:
+`conda env create -f environment.yml`
+
+manual:
+
 `conda create --name visualization-app`
 
 ### Activate Environment
