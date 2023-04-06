@@ -35,11 +35,11 @@ if __name__ == '__main__':
     #read_process.start()
     
     obj = application.Application()
-    run_flask = Process(target=run_flask_app)
-    run_flask.start()
+    # run_flask = Process(target=run_flask_app)
+    # run_flask.start()
     
     obj.execute_app()
-    run_flask.join()
+    # run_flask.join()
     
     # read_process.join()
 
