@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import filedialog
+from tkinter import messagebox
 import pandas as pd
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ import io
 import time
 import random
 import scipy
+from application import components1
 
 
 class Application:  
@@ -34,11 +36,13 @@ class Application:
         self.buffer = io.StringIO()
         self.plot_list = []
         self.uni_plot_list = ['hist','line','box', 'density']
-        self.bi_plot_list = ['scatter','box','area']
-        self.group_plot_list = ['pie','bar','scatter','barh']
+        self.bi_plot_list = ['scatter','box','area','barh','bar','line']
+        self.group_plot_list = ['pie','scatter','barh','box','line','area','bar']
         self.multi_plot_list = ['scatter','area']
         self.function = StringVar()
         self.subplot = StringVar()
+        self.transpose = StringVar()
+       
        
 
     def openFile(self):
@@ -144,11 +148,12 @@ class Application:
         )
         button_open.place(x=1,y=1)
         button_open.pack_propagate(0)
-        
-        
+        def on_closing():
+            if messagebox.askokcancel("Quit", "Do you want to quit?"):
+                self.window.destroy()
 
-    
-        # run the gui
+        self.window.protocol("WM_DELETE_WINDOW", on_closing)
+        self.window.mainloop()
         self.window.mainloop()
 
 
@@ -279,6 +284,7 @@ class Application:
         #---------------------------------------
 
         list_frame3 = Frame(self.frame1,height=200,width=120,highlightbackground="blue", highlightthickness=1)
+
         list_frame3.place(x=360,y=1)
         list_frame3.pack_propagate(0)
         #list_frame1.pack(padx=5, pady=5, fill=None, expand=False)
@@ -289,10 +295,11 @@ class Application:
         yscrollbar.pack(side = RIGHT, fill = Y)
         xscrollbar = Scrollbar(list_frame3)
         xscrollbar.pack(side = BOTTOM, fill = X)
-        list_plots = Listbox(list_frame3, selectmode = "single", 
-               yscrollcommand = yscrollbar.set, xscrollcommand = xscrollbar.set)
-        list_plots.pack(
-          expand = YES, fill = "both")
+        list_plots = components1.Components1().create_filter(list_frame3,yscrollbar.set,xscrollbar.set)
+        # list_plots = Listbox(list_frame3, selectmode = "single", 
+        #        yscrollcommand = yscrollbar.set, xscrollcommand = xscrollbar.set)
+        # list_plots.pack(
+        #   expand = YES, fill = "both")
         
         # for num,item in enumerate(self.plot_list):
       
@@ -329,13 +336,19 @@ class Application:
         def chk_plot(list_plotsp):
             list_plots.delete(0, 'end')
 
-            if len(var_x)<1 and len(var_y)<1:
-                print("select at least one x and y")
-            elif len(var_x)>1 and len(var_y)>1:
+            if len(var_x)<1 and len(var_y)<1 :
+                messagebox.showerror("showerror", "select at least one x and y")
+                
+            elif len(var_x)>=1 and len(var_y)>1 and self.function.get() == 'group by':
+                for num,item in enumerate(self.multi_plot_list):
+                    list_plotsp.insert(END, item)
+                    list_plotsp.itemconfig(num, bg = "lime")
+                self.plot_list = self.multi_plot_list
+                button_plt["state"] = NORMAL
             
-                print("length of both x and y can't be greater than one")
-                return
-            elif len(var_x)==1 and len(var_y)==1:
+                
+    
+            elif len(var_x)==1 and len(var_y)==1 and self.function.get() == 'group by':
                 for num,item in enumerate(self.bi_plot_list):
                     list_plotsp.insert(END, item)
                     list_plotsp.itemconfig(num, bg = "lime")
@@ -348,15 +361,19 @@ class Application:
                     list_plotsp.itemconfig(num, bg = "lime")
                 self.plot_list = self.uni_plot_list
                 button_plt["state"] = NORMAL
-            elif (len(var_x)==1 and len(var_y)==2):
-                if var_x[0] in var_y:
+            elif (len(var_x)>=1 and len(var_y)>=1 and self.function.get() != 'group by'):
                     for num,item in enumerate(self.group_plot_list):
                         list_plotsp.insert(END, item)
                         list_plotsp.itemconfig(num, bg = "lime")
                     self.plot_list = self.group_plot_list
                     button_plt["state"] = NORMAL
-            else:
-                return
+                
+
+                
+            
+            else :
+                messagebox.showerror("showerror","No options for plots are matched for selected x,y")
+               
 
             
 
@@ -380,12 +397,20 @@ class Application:
         fun_combobox.config(values=('sum','avg','min','max','count','group by'))
         self.function.set('group by')
 
+        
+
 
         subplot_combobox = ttk.Combobox(self.frame1, textvariable=self.subplot)
-        subplot_combobox.place(x=500,y=100)
+        subplot_combobox.place(x=500,y=50)
         subplot_combobox.pack_propagate(0)
         subplot_combobox.config(values=('normal','subplot'))
         self.subplot.set('normal')
+
+        tran_combobox = ttk.Combobox(self.frame1, textvariable=self.transpose)
+        tran_combobox.place(x=500,y=100)
+        tran_combobox.pack_propagate(0)
+        tran_combobox.config(values=('transpose','no transpose'))
+        self.transpose.set('no transpose')
 
 
 
@@ -394,6 +419,7 @@ class Application:
         button_plt.place(x=490,y=210)
         button_plt.pack_propagate(0)
         button_plt["state"] = DISABLED
+
 
 
 
@@ -431,26 +457,35 @@ class Application:
         for i in col_y:
             cols_y.append(self.df.columns[i])
         
-        for i in col_y:
+        for i in col_x:
             cols_x.append(self.df.columns[i])
-        
+
+        for val in cols_x:
+            if val not in cols_y:
+                cols_y.append(val)
+        print(cols_y)
         try:
             if fun == 'sum':
-                self.ref_df= self.df[cols_y].groupby(cols_x[0]).sum()
+                self.ref_df= self.df[cols_y].groupby(cols_x).sum()
 
             elif fun == 'avg':
-                self.ref_df= self.df[cols_y].groupby(cols_x[0]).mean()
+                self.ref_df= self.df[cols_y].groupby(cols_x).mean()
             elif fun == 'min':
-                self.ref_df= self.df[cols_y].groupby(cols_x[0]).min()
+                self.ref_df= self.df[cols_y].groupby(cols_x).min()
             elif fun == 'max':
-                self.ref_df= self.df[cols_y].groupby(cols_x[0]).max()
+                self.ref_df= self.df[cols_y].groupby(cols_x).max()
             elif fun == 'count':
-                self.ref_df= self.df[cols_y].groupby(cols_x[0]).count()
+                self.ref_df= self.df[cols_y].groupby(cols_x).count()
         except:
             print("function did not work")
 
-        self.ref_df=self.ref_df.reset_index()
-        print(self.ref_df)
+
+        if self.transpose.get()=='transpose':
+            self.ref_df = self.ref_df.T
+            print(self.ref_df)
+
+        
+        
        
             
 
@@ -527,30 +562,29 @@ class Application:
         print(argsy)
         print(plot)
         if len(argsx)<1 and len(argsy)<1:
-            print("select at least one x and y")
-        elif len(argsx)>1 and len(argsy)>1:
+            messagebox.showerror("showerror","Select at least one x and y to get the plot")
             
-            print("length of both x and y can't be greater than one")
-            return
-        elif len(argsx)==1 and len(argsy)==1:
+        
+        elif len(argsx)==1 and len(argsy)==1 and self.function.get() == 'group by':
             self.bi_plot(argsx[0],argsy[0],plot)
+            print("reacing bi")
         elif (len(argsx)==0 and len(argsy)==1) or (len(argsx)==1 and len(argsy)==0) :
             args = argsx[0] if len(argsx) > len(argsy) else argsy[0]
             print(args)
             self.uni_plot(args,plot)
-        elif (len(argsx)==1 and len(argsy)==2):
-            if argsx[0] in argsy:
-                argsy.remove(argsx[0])
-                self.bi_plot(argsx[0],argsy[0],plot)
-            else:
-                return
-               
+        elif (len(argsx)>=1 and len(argsy)>=1 and self.function.get() != 'group by'):
+           
+            self.group_plot(argsx,argsy,plot)
+           
+        
+        elif len(argsx)>=1 and len(argsy)>=1:
+            print("smulti")
 
-
+            self.multi_plot(argsx,argsy,plot)
             
+        else :
+            messagebox.showerror("showerror","No options matched for selected x and y")
             
-        elif len(argsx)>1 or len(argsy)>1 :
-            return
         
     
     def uni_plot(self,args,plot):
@@ -578,7 +612,8 @@ class Application:
                 self.df[col_head].plot(kind=plot, legend=True,title=f"Line {col_head}" ,xlabel=col_head,ylabel="Value",ax=ax1,color=colors[random.randint(0,len(colors)-1)])
            
         except Exception as error:
-            print(error)
+            messagebox.showerror("showerror",error)
+          
             # error_label.config(text=f"Argument {col_head} type does not support histogram")
             # error_label.pack_propagate(0)
             return
@@ -621,28 +656,128 @@ class Application:
         
         bar1 = FigureCanvasTkAgg(fig, self.frame2)
 
+
+
         ax1 = fig.add_subplot(111)
         colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
         try:
             if plot=='scatter':
-                self.df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Scatter {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Scatter {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
             elif plot=='bar':
-                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Bar {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, edgecolor='black',legend=True,title=f"Bar {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
             elif plot=='barh':
-                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Bar Horizontal {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
-
+                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y,edgecolor='black', legend=True,title=f"Bar Horizontal {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+            elif plot =='box':
+                self.ref_df.plot(kind='box',x=col_head_x,y=col_head_y, legend=True,title=f"Box Horizontal {col_head_y} VS {col_head_x}" ,color=colors[random.randint(0,len(colors)-1)],xlabel=col_head_x,ylabel=col_head_y,ax=ax1)
             elif plot=='line':
-                self.df.plot(kind=plot, legend=True,title=f"Line {col_head_x} VS {col_head_y}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
-            elif plot == 'pie':
-                self.ref_df[col_head_x].plot(kind=plot,y=col_head_y,title=f"{plot} chart {col_head_x} VS {col_head_y}",ylabel=col_head_y,legend=True,ax=ax1)
+                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Line {col_head_x} VS {col_head_y}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+            elif plot=='area':
+                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Area {col_head_x} VS {col_head_y}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+        
         except Exception as error:
-            print(error)
+            messagebox.showerror("showerror",error)
+            
             # error_label.config(text=f"Argument {col_head} type does not support histogram")
             # error_label.pack_propagate(0)
             return
         bar1.get_tk_widget().config(width=1200,height=500)
         bar1.draw()
+
+        bar1.get_tk_widget().pack()
+    
+        # placing the canvas on the Tkinter window
+        
+    
+        # creating the Matplotlib toolbar
+        toolbar = NavigationToolbar2Tk(bar1,
+                                    self.frame2)
+        toolbar.update()
+        
+    
+        # placing the toolbar on the Tkinter window
+        
+        
+        bar1.get_tk_widget().pack()
+        self.frame2.pack_propagate(1)
+    
+    def multi_plot(self,argx,argy,plot):
+
+        col_head_x = [self.df.columns[x] for x in argx]
+        col_head_y = [self.df.columns[x] for x in argy]
+        print(col_head_x)
+        print(col_head_y)
+        for widget in self.frame2.winfo_children():
+            print(widget.__str__())
+            widget.destroy()
+        
+
+        global new_ax_sub
+        global fig
+        global new_ax_nor
+       
+        
+       
+
+        if self.subplot.get() == 'subplot':
+            global new_ax_sub
+            global fig
+
+            fig, new_ax_sub = plt.subplots(nrows=len(argx), ncols=len(argy), figsize=(5, 5))
+            plt.subplots_adjust(hspace=0.5)
+            new_ax_sub= new_ax_sub.ravel()
+            
+        else:
+            global new_ax_nor
+            fig, new_ax_nor = plt.subplots(nrows=1, ncols=1, figsize=(5, 5))
+            
+
+
+        bar1 = FigureCanvasTkAgg(fig, self.frame2)
+        
+        fig.suptitle(f"All Plots {col_head_x.__str__()} VS {col_head_y.__str__()}) ", fontsize=18, y=0.95)
+
+        # loop through tickers and axes
+    
+        pointer=0
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        try:
+            for x in col_head_x:
+            
+                for y in col_head_y:
+                
+                # filter df for ticker and plot on specified axes
+                    if self.subplot.get() != 'subplot':
+                    
+                        if plot == 'scatter':
+                            self.df.plot(kind=plot, x=x,ax=new_ax_nor,legend=True,y=y,s=0.2 ,color=colors[random.randint(0,len(colors)-1)])
+                        elif  plot == 'area': 
+                            self.df.plot(kind=plot, x=x,ax=new_ax_nor,legend=True,y=y,color=colors[random.randint(0,len(colors)-1)])
+                    
+                        
+                    else:
+                        
+                        if plot == 'scatter':
+
+                            self.df.plot(kind=plot, x=x,ax=new_ax_sub[pointer],y=y,s=0.2 ,color=colors[random.randint(0,len(colors)-1)],xlabel=x,ylabel=y)
+                        elif plot == 'area ':
+                            self.df.plot(kind=plot, x=x,ax=new_ax_sub[pointer],y=y ,color=colors[random.randint(0,len(colors)-1)],xlabel=x,ylabel=y)
+                        
+                        pointer +=1
+                    bar1.draw()
+        except Exception as error:
+            messagebox.showerror("showerror",error)
+
+            
+
+            # chart formatting
+        
+        
+
+    
+
+        bar1.get_tk_widget().config(width=1200,height=500)
+        
 
         bar1.get_tk_widget().pack()
     
@@ -666,8 +801,8 @@ class Application:
         print(argx)
         print(argy)
         print(plot)
-        col_head_x = self.df.columns[argx]
-        col_head_y = self.df.columns[argy]
+        col_head_x = [self.df.columns[x] for x in argx]
+        col_head_y = [self.df.columns[x] for x in argy]
         print(col_head_y)
         for widget in self.frame2.winfo_children():
             print(widget.__str__())
@@ -681,19 +816,25 @@ class Application:
         ax1 = fig.add_subplot(111)
         colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
+        print(self.ref_df)
+
         try:
             if plot=='scatter':
-                self.df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Scatter {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+                self.ref_df.reset_Index().plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Scatter {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
             elif plot=='bar':
-                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Bar {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+                self.ref_df.plot(kind=plot,legend=True,title=f"Line {col_head_x} VS {col_head_y}" ,label=True,xlabel=col_head_x,ylabel=col_head_y,ax=ax1)
             elif plot=='barh':
-                self.ref_df.plot(kind=plot,x=col_head_x,y=col_head_y, legend=True,title=f"Bar Horizontal {col_head_y} VS {col_head_x}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+                self.ref_df.plot(kind=plot, legend=True,title=f"Bar Horizontal {col_head_y} VS {col_head_x}",ax=ax1,label=True)
             elif plot=='line':
-                self.df.plot(kind=plot, legend=True,title=f"Line {col_head_x} VS {col_head_y}" ,xlabel=col_head_x,ylabel=col_head_y,ax=ax1,color=colors[random.randint(0,len(colors)-1)])
+                self.ref_df.plot(kind=plot,title=f"Line {col_head_x} VS {col_head_y}" ,legend=True,label=True,ax=ax1)
             elif plot == 'pie':
-                self.ref_df[col_head_x].plot(kind=plot,y=col_head_y,title=f"{plot} chart {col_head_x} VS {col_head_y}",ylabel=col_head_y,legend=True,ax=ax1)
+                self.ref_df.plot(kind=plot,y=col_head_y[0],title=f"{plot} chart {col_head_x} VS {col_head_y}",label=True,legend=True,ax=ax1)
+            elif plot =='box':
+                self.ref_df.plot(kind='box', legend=True,label=True,title=f"Box  {col_head_y} VS {col_head_x}" ,color=colors[random.randint(0,len(colors)-1)],ax=ax1)
+            elif plot=='area':
+                self.ref_df.plot(kind=plot, legend=True,label=True,title=f"Area {col_head_x} VS {col_head_y}" ,ax=ax1)
         except Exception as error:
-            print(error)
+            messagebox.showerror("showerror",error)
             # error_label.config(text=f"Argument {col_head} type does not support histogram")
             # error_label.pack_propagate(0)
             return
