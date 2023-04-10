@@ -1,10 +1,31 @@
-
 from flask import Flask
 from application import application
-from multiprocessing import Process
+import logging
+
+
+logging.basicConfig(filename="app.log",
+                    format='%(asctime)s - %(message)s',
+                    filemode='w')
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+
+ 
+# Creating an object
+
+ 
+# Setting the threshold of logger to DEBUG
+
 
 
 app = Flask(__name__)
+
+
+
+
+
+
 
 # @app.before_request
 # def before_request_func():
@@ -19,30 +40,21 @@ def before_first_request_func():
 def home():
     return "<p>This is the home page</p>"
 
-@app.route("/hello/<searchTerm>", methods=['GET'])
-def bertify(searchTerm):
+@app.route("/search/<searchTerm>", methods=['GET'])
+def search(searchTerm):
     
     return f"<p>Api to to built in the future: {(searchTerm)}</p>"
+
+
 
 def run_flask_app():
     app.run(host='0.0.0.0', port=5000)
     
 if __name__ == '__main__':
-    # app.run()
-    # windows_process = Process(target=application.execute_app(), args=([1,9,4,5,2,6,8,4],))
-    #windows_process = Process(target=application.execute_app)
-    #read_process = Process(target=application.read_csv)
-    #read_process.start()
-    
-    obj = application.Application()
-    # run_flask = Process(target=run_flask_app)
-    # run_flask.start()
-    
-    obj.execute_app()
-    # run_flask.join()
-    
-    # read_process.join()
 
+    obj = application.Application()
+    obj.execute_app()
+    
     
 
 
